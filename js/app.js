@@ -710,7 +710,7 @@
       '<section class="stack"><h2 class="section-title">Saved beats</h2><div id="beatList"></div></section>' +
       '<section class="card stack"><h3 class="sub-title">Backup and restore</h3>' +
         '<p class="muted" style="margin:0">' + (window.App.cloud ? 'Progress is saved to your Claude account and in this browser. A backup copy is still a good idea before big changes.' : 'Progress is saved in this browser only. Copy a backup regularly (and before clearing browser data) so you can restore it here or on another device.') + '</p>' +
-        '<div class="btn-row"><button class="btn" type="button" id="bkCopy">Copy backup</button>' + (framed ? '' : '<button class="btn" type="button" id="bkDl">Download backup file</button>') + '<label class="btn" for="bkFile">Restore from file</label><input type="file" id="bkFile" accept="application/json,.json" hidden></div>' +
+        '<div class="btn-row"><button class="btn" type="button" id="bkCopy">Copy backup</button><button class="btn" type="button" id="bkDl"' + (framed ? ' hidden' : '') + '>Download backup file</button><label class="btn" for="bkFile">Restore from file</label><input type="file" id="bkFile" accept="application/json,.json" hidden></div>' +
         '<div class="field"><label for="bkText">Or paste a backup here</label><textarea id="bkText" placeholder="Paste backup JSON"></textarea></div>' +
         '<div class="btn-row"><button class="btn" type="button" id="bkRestore">Restore pasted backup</button><button class="btn ghost" type="button" id="bkReset">Reset all progress</button><span id="resetConfirm"></span></div>' +
       '</section>' +
@@ -729,14 +729,33 @@
     drawBeats();
     document.getElementById('bkCopy').onclick = function () { copy(Store.exportJSON()); };
     const dlb = document.getElementById('bkDl');
-    if (dlb) dlb.onclick = function () {
-      const blob = new Blob([Store.exportJSON()], { type: 'application/json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'producer-academy-backup-' + Store.today() + '.json';
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
-    };
+    const backupName = 'producer-academy-backup-' + Store.today() + '.json';
+    if (!framed) {
+      dlb.onclick = function () {
+        const blob = new Blob([Store.exportJSON()], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = backupName;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+      };
+    } else if (window.claude && typeof window.claude.use === 'function') {
+      // Inside a claude.ai artifact, files are offered through the downloads capability.
+      window.claude.use('downloads').then(function (dl) {
+        if (!dl || !document.body.contains(dlb)) return;
+        dlb.hidden = false;
+        dlb.onclick = function () {
+          dl.save({ filename: backupName, data: Store.exportJSON() }).then(function (r) {
+            if (r.status === 'saved') toast('Backup saved');
+          }, function (e) {
+            const code = e && e.code;
+            if (code === 'declined') return;
+            if (code === 'rate_limited') { toast('A save prompt is already open.'); return; }
+            dlb.hidden = true;
+          });
+        };
+      });
+    }
     function restore(text) {
       try { Store.importJSON(text); toast('Backup restored'); viewProfile(); }
       catch (e) { toast('Could not restore: ' + (e.message || 'the backup is not valid JSON.')); }
