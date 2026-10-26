@@ -30,7 +30,9 @@
   let state = load();
   const listeners = [];
 
-  function save() {
+  // `updated` lets a synced copy (see sync.js) tell which version is newer.
+  function save(keepStamp) {
+    if (!keepStamp) state.updated = Date.now();
     try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* ignore */ }
     listeners.forEach(function (fn) { try { fn(state); } catch (e) { /* ignore */ } });
   }
@@ -184,6 +186,8 @@
       state = Object.assign(blank(), data);
       save();
     },
+    // Adopt a newer copy from cloud sync without restamping it.
+    replace: function (data) { state = Object.assign(blank(), data); save(true); },
     reset: function () { state = blank(); save(); }
   };
 

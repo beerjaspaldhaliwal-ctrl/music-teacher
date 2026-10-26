@@ -709,7 +709,7 @@
       }).join('') + '</div></section>' +
       '<section class="stack"><h2 class="section-title">Saved beats</h2><div id="beatList"></div></section>' +
       '<section class="card stack"><h3 class="sub-title">Backup and restore</h3>' +
-        '<p class="muted" style="margin:0">Progress is saved in this browser only. Copy a backup regularly (and before clearing browser data) so you can restore it here or on another device.</p>' +
+        '<p class="muted" style="margin:0">' + (window.App.cloud ? 'Progress is saved to your Claude account and in this browser. A backup copy is still a good idea before big changes.' : 'Progress is saved in this browser only. Copy a backup regularly (and before clearing browser data) so you can restore it here or on another device.') + '</p>' +
         '<div class="btn-row"><button class="btn" type="button" id="bkCopy">Copy backup</button>' + (framed ? '' : '<button class="btn" type="button" id="bkDl">Download backup file</button>') + '<label class="btn" for="bkFile">Restore from file</label><input type="file" id="bkFile" accept="application/json,.json" hidden></div>' +
         '<div class="field"><label for="bkText">Or paste a backup here</label><textarea id="bkText" placeholder="Paste backup JSON"></textarea></div>' +
         '<div class="btn-row"><button class="btn" type="button" id="bkRestore">Restore pasted backup</button><button class="btn ghost" type="button" id="bkReset">Reset all progress</button><span id="resetConfirm"></span></div>' +
@@ -756,7 +756,7 @@
     };
   }
 
-  window.App = { toast: toast, copy: copy, go: go };
+  window.App = { toast: toast, copy: copy, go: go, refresh: function () { render(current); }, cloud: false };
 
   render(location.hash.slice(1) || 'home');
 })();
