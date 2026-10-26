@@ -48,14 +48,14 @@
 
   const RANKS = [
     { xp: 0, name: 'Rookie' },
-    { xp: 400, name: 'Beatmaker' },
-    { xp: 1200, name: 'Apprentice Producer' },
-    { xp: 3000, name: 'Producer' },
-    { xp: 6000, name: 'Engineer' },
-    { xp: 10000, name: 'Senior Producer' },
-    { xp: 16000, name: 'Executive Producer' },
-    { xp: 24000, name: 'Studio Owner' },
-    { xp: 32000, name: 'Master Producer' }
+    { xp: 600, name: 'Beatmaker' },
+    { xp: 2000, name: 'Apprentice Producer' },
+    { xp: 5000, name: 'Producer' },
+    { xp: 10000, name: 'Engineer' },
+    { xp: 17000, name: 'Hitmaker' },
+    { xp: 26000, name: 'Platinum Producer' },
+    { xp: 38000, name: 'Studio Owner' },
+    { xp: 52000, name: 'Master Producer' }
   ];
 
   const Store = {
@@ -182,7 +182,7 @@
     exportJSON: function () { return JSON.stringify(state, null, 2); },
     importJSON: function (text) {
       const data = JSON.parse(text);
-      if (!data || typeof data !== 'object' || !data.completed) throw new Error('That file is not a Producer Academy backup.');
+      if (!data || typeof data !== 'object' || !data.completed) throw new Error('That file is not a Hip-Hop Academy backup.');
       state = Object.assign(blank(), data);
       save();
     },

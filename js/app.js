@@ -3,6 +3,7 @@
   const esc = window.MD.esc;
   const md = window.MD.render;
 
+  if (A.hhFinalize) A.hhFinalize();
   A.semesters.sort(function (a, b) { return a.no - b.no; });
   const LESSONS = [];
   const BY_ID = {};
@@ -42,7 +43,7 @@
     for (let i = 0; i < A.semesters.length; i++) {
       const s = A.semesters[i];
       const p = semProgress(s);
-      if (p.complete) continue;
+      if (p.complete || s.elective) continue;
       const req = s.required || [];
       if (s.minLessons) {
         const optionalDone = s.lessons.filter(function (l) { return req.indexOf(l.id) === -1 && Store.isDone(l.id); }).length;
@@ -119,7 +120,7 @@
     Tools.stopAll();
     current = token;
     const r = parse(token);
-    const views = { home: viewHome, school: viewSchool, semester: viewSemester, lesson: viewLesson, genres: viewGenres, studio: viewStudio, roadmap: viewRoadmap, glossary: viewGlossary, library: viewLibrary, profile: viewProfile };
+    const views = { home: viewHome, school: viewSchool, semester: viewSemester, lesson: viewLesson, genres: viewGenres, electives: viewElectives, studio: viewStudio, roadmap: viewRoadmap, glossary: viewGlossary, library: viewLibrary, profile: viewProfile };
     (views[r.view] || viewHome)(r.arg);
     renderRail(r.view);
     closeMenu();
@@ -146,18 +147,18 @@
     const items = [
       ['home', 'Dashboard', ''],
       ['school', 'School', c.lessons + '/' + LESSONS.length],
-      ['genres', 'Genre Studios', A.semesters[7] ? A.semesters[7].genres.length : ''],
+      ['genres', 'Hip-Hop Styles', (A.hhStyles || []).length || ''],
       ['studio', 'Practice Studio', ''],
       ['roadmap', 'Roadmap & Log', ''],
       ['glossary', 'Glossary', ''],
       ['library', 'Library', ''],
       ['profile', 'Profile & Certificates', '']
     ];
-    const activeMap = { semester: 'school', lesson: 'school' };
+    const activeMap = { semester: 'school', lesson: 'school', electives: 'genres' };
     let active = activeMap[view] || view;
     if (view === 'lesson') {
       const l = BY_ID[parse(current).arg];
-      if (l && l.genre) active = 'genres';
+      if (l && (l.genre || l.styleId)) active = 'genres';
     }
     let html = '<span class="nav-label">Learn</span>';
     items.forEach(function (it, i) {
@@ -196,7 +197,7 @@
     let semRows = A.semesters.map(function (s) {
       const p = semProgress(s);
       return '<a class="sem-row' + (p.complete ? ' complete' : '') + '" href="#semester.' + s.id + '">' +
-        '<span class="sem-no">' + String(s.no).padStart(2, '0') + '</span>' +
+        '<span class="sem-no">' + (s.elective ? 'EL' : String(s.no).padStart(2, '0')) + '</span>' +
         '<span><h3>' + esc(s.title) + '</h3><p>' + esc(s.tagline) + '</p></span>' +
         '<span class="sem-meter">' + meter(p.pct, p.complete ? 'good' : '') + '<span>' + (p.complete ? 'Certified' : Math.min(p.done, p.min) + ' / ' + p.min + ' lessons') + '</span></span>' +
       '</a>';
@@ -207,8 +208,8 @@
         '<section class="hero">' +
           '<div class="stack">' +
             '<span class="eyebrow">' + esc(fmtDate(Date.now())) + '</span>' +
-            '<h1 class="display">' + (name ? 'Welcome back,<br>' + esc(name) : 'Your music<br>production school') + '</h1>' +
-            '<p class="lede">Eleven semesters from your first beat to running a paid studio: theory, drums, sound design, recording, mixing, mastering, 34 genres and the music business.</p>' +
+            '<h1 class="display">' + (name ? 'Welcome back,<br>' + esc(name) : 'Your hip-hop<br>production school') + '</h1>' +
+            '<p class="lede">Fifteen semesters from your first beat to running your own hip-hop studio: every style from boom bap and G-funk to trap, drill and Punjabi drill, plus recording artists, mixing, mastering, placements and the business.</p>' +
             (name ? '' : '<form class="btn-row" id="nameForm"><input type="text" id="nameInput" placeholder="Your name (for certificates)" style="max-width:280px" aria-label="Your name"><button class="btn primary" type="submit">Start school</button></form>') +
           '</div>' +
           '<div class="rank-card">' +
@@ -232,6 +233,9 @@
           '<span class="clock">15 MIN</span>' +
           '<div class="stack" style="gap:8px"><span class="eyebrow">Today\'s drill</span><p style="margin:0;font-size:1.0625rem">' + esc(drill) + '</p><div class="btn-row"><button class="btn small" type="button" id="logDrill">Done: log 15 minutes</button><a class="btn small ghost" href="#studio">Open Practice Studio</a></div></div>' +
         '</section>' +
+        '<section class="stack"><div class="split"><h2 class="section-title">Hip-hop styles</h2><a href="#genres" class="small">All ' + A.hhStyles.length + ' styles</a></div><div class="genre-grid">' +
+          A.hhStyles.slice(0, 8).map(styleCard).join('') +
+        '</div></section>' +
         '<section class="stack"><div class="split"><h2 class="section-title">Semesters</h2><a href="#school" class="small">Full curriculum</a></div><div class="sem-list">' + semRows + '</div></section>' +
         '<section class="stack"><h2 class="section-title">Practice Studio</h2><div class="grid cols-3">' +
           Tools.list.map(function (t) { return '<a class="card" href="#studio.' + t.id + '" style="text-decoration:none;color:inherit;display:grid;gap:6px"><strong>' + esc(t.name) + '</strong><span class="muted small">' + esc(t.desc) + '</span></a>'; }).join('') +
@@ -256,7 +260,7 @@
   function viewSchool() {
     let html = '<div class="page">' +
       '<header class="stack"><span class="eyebrow">Curriculum</span><h1 class="display">The School</h1>' +
-      '<p class="lede">' + LESSONS.length + ' lessons across ' + A.semesters.length + ' semesters. Work in order, or jump to what you need. Every lesson has a step-by-step guide, a practical assignment and a quiz.</p></header>' +
+      '<p class="lede">' + LESSONS.length + ' lessons across ' + A.semesters.filter(function (s) { return !s.elective; }).length + ' semesters plus electives. Work in order, or jump to what you need. Every lesson has a step-by-step guide, videos to watch, a practical assignment and a quiz.</p></header>' +
       '<div class="field"><label for="schoolSearch">Search every lesson</label><input type="search" id="schoolSearch" placeholder="Try: sidechain, 808, royalties, Dorian, vocal booth…"></div>' +
       '<div id="searchOut" class="search-results" hidden></div>' +
       '<div id="semOut" class="stack" style="gap:28px">';
@@ -264,10 +268,10 @@
       const p = semProgress(s);
       const ls = s.genres ? s.lessons.filter(function (l) { return !l.genre; }) : s.lessons;
       html += '<section class="stack">' +
-        '<div class="split"><div><span class="eyebrow">Semester ' + s.no + ' · ' + s.weeks + ' weeks</span><h2 class="section-title">' + esc(s.title) + '</h2></div>' +
+        '<div class="split"><div><span class="eyebrow">' + (s.elective ? 'Optional electives' : 'Semester ' + s.no + ' · ' + s.weeks + ' weeks') + '</span><h2 class="section-title">' + esc(s.title) + '</h2></div>' +
         '<div style="min-width:160px;display:grid;gap:4px">' + meter(p.pct, p.complete ? 'good' : '') + '<span class="small muted mono">' + (p.complete ? 'Certificate earned' : Math.min(p.done, p.min) + ' / ' + p.min + ' to certify') + '</span></div></div>' +
         lessonList(ls) +
-        (s.genres ? '<a class="btn" href="#genres">Browse all ' + s.genres.length + ' genre studios</a>' : '') +
+        (s.genres ? '<a class="btn" href="#electives">Browse all ' + s.genres.length + ' elective genre studios</a>' : '') +
       '</section>';
     });
     html += '</div></div>';
@@ -286,10 +290,14 @@
   }
 
   function lessonList(ls, showSem) {
+    let group = null;
     return '<div class="lesson-list">' + ls.map(function (l) {
       const done = Store.isDone(l.id);
       const q = Store.quizState(l.id);
-      return '<a class="lesson-item' + (done ? ' done' : '') + '" href="#lesson.' + l.id + '">' +
+      let head = '';
+      if (!showSem && l.group && l.group !== group) head = '<div class="lesson-group">' + esc(l.group) + '</div>';
+      group = l.group || null;
+      return head + '<a class="lesson-item' + (done ? ' done' : '') + '" href="#lesson.' + l.id + '">' +
         '<span class="no">' + (done ? '<span class="check-dot on" aria-label="Completed"></span>' : (l.semester.no + '.' + String(l.index + 1).padStart(2, '0'))) + '</span>' +
         '<span><span class="t">' + esc(l.title) + '</span><div class="s">' + (showSem ? 'Semester ' + l.semester.no + ' · ' : '') + esc(l.summary) + '</div></span>' +
         '<span class="badges">' +
@@ -308,10 +316,10 @@
     const ls = s.genres ? s.lessons.filter(function (l) { return !l.genre; }) : s.lessons;
     main.innerHTML = '<div class="page">' +
       '<nav class="crumbs"><a href="#school">School</a><span>/</span><span>Semester ' + s.no + '</span></nav>' +
-      '<header class="stack"><span class="eyebrow">Semester ' + s.no + ' · ' + s.weeks + ' weeks · ' + s.lessons.length + ' lessons</span><h1 class="display">' + esc(s.title) + '</h1><p class="lede">' + esc(s.tagline) + '</p>' +
+      '<header class="stack"><span class="eyebrow">' + (s.elective ? 'Optional electives' : 'Semester ' + s.no) + ' · ' + s.weeks + ' weeks · ' + s.lessons.length + ' lessons</span><h1 class="display">' + esc(s.title) + '</h1><p class="lede">' + esc(s.tagline) + '</p>' +
       '<div style="max-width:420px;display:grid;gap:6px">' + meter(p.pct, p.complete ? 'good' : '') + '<span class="small muted mono">' + (p.complete ? 'Complete' : Math.min(p.done, p.min) + ' of ' + p.min + ' lessons needed for the certificate' + (s.required ? ' (including ' + s.required.map(function (r) { return BY_ID[r].title; }).join(' and ') + ')' : '')) + '</span></div></header>' +
       '<section class="objectives"><strong>By the end of this semester you will be able to:</strong><ul>' + s.outcomes.map(function (o) { return '<li>' + esc(o) + '</li>'; }).join('') + '</ul></section>' +
-      '<section class="stack"><h2 class="section-title">Lessons</h2>' + lessonList(ls) + (s.genres ? '<a class="btn primary" href="#genres">Open the ' + s.genres.length + ' Genre Studios</a>' : '') + '</section>' +
+      '<section class="stack"><h2 class="section-title">Lessons</h2>' + lessonList(ls) + (s.genres ? '<a class="btn primary" href="#electives">Open the ' + s.genres.length + ' elective genre studios</a>' : '') + (s.hiphop ? '<a class="btn" href="#genres">See all hip-hop styles</a>' : '') + '</section>' +
       '<section class="stack"><h2 class="section-title">Certificate</h2>' + certificate(s, p) + '</section>' +
     '</div>';
     bindPrint();
@@ -321,9 +329,9 @@
     const who = Store.state.name || 'Your Name';
     return '<div class="cert' + (p.complete ? '' : ' locked') + '">' +
       '<span class="seal">' + (p.complete ? 'Cert<br>ified' : 'Lock<br>ed') + '</span>' +
-      '<span class="eyebrow">Producer Academy certifies that</span>' +
+      '<span class="eyebrow">Hip-Hop Academy certifies that</span>' +
       '<span class="who">' + esc(who) + '</span>' +
-      '<span>has completed <strong>Semester ' + s.no + ': ' + esc(s.title) + '</strong></span>' +
+      '<span>has completed <strong>' + (s.elective ? 'the electives' : 'Semester ' + s.no) + ': ' + esc(s.title) + '</strong></span>' +
       '<span class="muted small">' + (p.complete ? 'Awarded ' + esc(fmtDate(semCompletedAt(s))) : 'Complete ' + p.min + ' lessons to earn this certificate (' + Math.min(p.done, p.min) + ' done)') + '</span>' +
       (p.complete && !framed ? '<button class="btn small no-print" type="button" data-print>Print certificate</button>' : '') +
     '</div>';
@@ -343,9 +351,20 @@
     const dl = (l.assignment && l.assignment.deliverables) || [], ds = Store.delivState(l.id);
     const g = l.genre;
 
-    let head = '<nav class="crumbs"><a href="#school">School</a><span>/</span><a href="#semester.' + s.id + '">Semester ' + s.no + '</a>' + (g ? '<span>/</span><a href="#genres">Genre Studios</a>' : '') + '<span>/</span><span>' + esc(l.title) + '</span></nav>' +
+    const parts = l.styleId ? LESSONS.filter(function (x) { return x.styleId === l.styleId; }) : [];
+    const semLabel = s.elective ? 'Electives' : 'Semester ' + s.no;
+    const eyebrow = l.styleId ? esc(l.styleName) + ' · Part ' + (parts.indexOf(l) + 1) + ' of ' + parts.length
+      : g ? esc(g.family) + ' · Elective genre studio'
+      : semLabel + ' · Lesson ' + (l.index + 1) + ' of ' + s.lessons.length;
+    let head = '<nav class="crumbs"><a href="#school">School</a><span>/</span><a href="#semester.' + s.id + '">' + semLabel + '</a>' +
+      (g ? '<span>/</span><a href="#electives">Elective genres</a>' : '') +
+      (l.styleId ? '<span>/</span><a href="#genres">Hip-Hop Styles</a><span>/</span><a href="#lesson.' + parts[0].id + '">' + esc(l.styleName) + '</a>' : '') +
+      '<span>/</span><span>' + esc(l.title) + '</span></nav>' +
+      (parts.length > 1 ? '<nav class="part-nav" aria-label="Masterclass parts">' + parts.map(function (x, i) {
+        return '<a class="chip' + (x === l ? ' cur' : Store.isDone(x.id) ? ' done' : '') + '" href="#lesson.' + x.id + '">' + (Store.isDone(x.id) && x !== l ? '✓ ' : '') + 'Part ' + (i + 1) + '</a>';
+      }).join('') + '</nav>' : '') +
       '<header class="lesson-head">' +
-        '<span class="eyebrow">' + (g ? esc(g.family) + ' · Genre Studio' : 'Semester ' + s.no + ' · Lesson ' + (l.index + 1) + ' of ' + s.lessons.length) + '</span>' +
+        '<span class="eyebrow">' + eyebrow + '</span>' +
         '<h1 class="display">' + esc(l.title) + '</h1>' +
         '<p class="lede">' + esc(l.summary) + '</p>' +
         '<div class="lesson-meta">' +
@@ -371,7 +390,7 @@
     const beats = l.beats || [];
     if (beats.length || (l.tools && l.tools.length)) {
       practice = '<section class="card stack"><strong>Practise in the studio</strong><div class="btn-row">' +
-        beats.map(function (b, i) { return '<button class="btn primary small" type="button" data-beat="' + i + '">Load "' + esc(b.name) + '" in Drum Machine</button>'; }).join('') +
+        beats.map(function (b, i) { return '<button class="btn ' + (b.keys || b.bass ? 'primary ' : '') + 'small" type="button" data-beat="' + i + '">' + (b.keys || b.bass ? 'Play' : 'Load') + ' "' + esc(b.name) + '" in Beat Lab</button>'; }).join('') +
         (l.tools || []).filter(function (t) { return !(t === 'drums' && beats.length); }).map(function (t) { return '<a class="btn small" href="#studio.' + t + '">Open ' + esc(toolName(t)) + '</a>'; }).join('') +
       '</div></section>';
     }
@@ -403,6 +422,7 @@
       '<section class="objectives"><strong>Learning objectives</strong><ul>' + l.objectives.map(function (o) { return '<li>' + esc(o) + '</li>'; }).join('') + '</ul></section>' +
       practice +
       '<section class="block"><header><h2>' + (l.project ? 'The brief' : 'Lesson') + '</h2></header><div class="prose">' + md(l.body) + '</div></section>' +
+      watchHtml(l) +
       stepsHtml + tipsHtml + assignHtml + quizHtml +
       '<section class="complete-bar" id="completeBar"></section>' +
       '<nav class="pager">' +
@@ -527,9 +547,9 @@
     if (rt) rt.onclick = function () { quizSel[l.id] = {}; box.innerHTML = quizBody(l); bindQuiz(l); };
   }
 
-  // ---------- Genres ----------
+  // ---------- Hip-hop styles and electives ----------
   function miniGrid(p) {
-    if (!p) return '<div class="mini-grid" aria-hidden="true">' + new Array(17).join('<span></span>') + '</div>';
+    if (!p || !p.kick) return '<div class="mini-grid" aria-hidden="true">' + new Array(17).join('<span></span>') + '</div>';
     let h = '<div class="mini-grid" aria-hidden="true">';
     for (let i = 0; i < 16; i++) {
       const k = (p.kick || '')[i] === 'x';
@@ -539,16 +559,49 @@
     return h + '</div>';
   }
 
+  function styleLessons(st) { return LESSONS.filter(function (l) { return l.styleId === st.id; }); }
+
+  function styleCard(st) {
+    const ls = styleLessons(st);
+    if (!ls.length) return '';
+    const done = ls.filter(function (l) { return Store.isDone(l.id); }).length;
+    let beat = st.demo || null;
+    if (!beat) ls.some(function (l) { return (l.beats || []).some(function (b) { if (b.kick) { beat = b; return true; } return false; }); });
+    return '<a class="genre-card' + (done === ls.length ? ' done' : '') + '" href="#lesson.' + ls[0].id + '">' +
+      '<span class="gfam">' + esc(st.origin) + '</span>' +
+      '<span class="gname">' + esc(st.name) + '</span>' +
+      '<span class="gbpm">' + (st.bpm[0] === st.bpm[1] ? st.bpm[0] : st.bpm[0] + '–' + st.bpm[1]) + ' BPM · ' + ls.length + ' parts · ' + done + ' done</span>' +
+      miniGrid(beat) +
+      '<p>' + esc(st.sig) + '.</p>' +
+    '</a>';
+  }
+
   function viewGenres() {
+    const sems = A.semesters.filter(function (s) { return s.hiphop; });
+    const total = A.hhStyles.length;
+    const doneStyles = A.hhStyles.filter(function (st) { const ls = styleLessons(st); return ls.length && ls.every(function (l) { return Store.isDone(l.id); }); }).length;
+    main.innerHTML = '<div class="page">' +
+      '<header class="stack"><span class="eyebrow">Year 2 · Semesters 8–12</span><h1 class="display">Hip-Hop Styles</h1>' +
+      '<p class="lede">' + total + ' hip-hop styles, each a masterclass from history and sound to drums, melodies, 808s, arrangement, vocals, mixing and selling, with demo beats you can play and study in the Beat Lab.</p>' +
+      '<div style="max-width:420px;display:grid;gap:6px">' + meter(total ? doneStyles / total * 100 : 0, doneStyles === total ? 'good' : '') + '<span class="small muted mono">' + doneStyles + ' of ' + total + ' styles fully completed</span></div></header>' +
+      sems.map(function (s) {
+        return '<section class="stack"><div class="split"><div><span class="eyebrow">Semester ' + s.no + '</span><h2 class="section-title">' + esc(s.title) + '</h2></div><a class="small" href="#semester.' + s.id + '">Semester page</a></div>' +
+          '<div class="genre-grid">' + A.hhStyles.filter(function (st) { return st.sem === s.id; }).map(styleCard).join('') + '</div></section>';
+      }).join('') +
+      '<section class="card split"><div class="stack" style="gap:4px"><strong>Electives: genres beyond hip-hop</strong><span class="muted small">Soul, funk, jazz, Afrobeats, amapiano, reggaeton, house, cinematic and more: the music hip-hop samples and fuses with.</span></div><a class="btn" href="#electives">Open electives</a></section>' +
+    '</div>';
+  }
+
+  function viewElectives() {
     const s = A.semesters.find(function (x) { return x.genres; });
     const fams = ['All'];
     s.genres.forEach(function (g) { if (fams.indexOf(g.family) === -1) fams.push(g.family); });
-    const doneCount = s.genres.filter(function (g) { return Store.isDone('g-' + g.id); }).length;
+    if (fams.indexOf(genreFilter) === -1) genreFilter = 'All';
     main.innerHTML = '<div class="page">' +
-      '<header class="stack"><span class="eyebrow">Semester 8</span><h1 class="display">Genre Studios</h1>' +
-      '<p class="lede">' + s.genres.length + ' genres, each with its history, drums, bass, harmony, sound palette, arrangement template, mixing notes, a beat you can load into the Drum Machine, an assignment and a quiz. Complete at least 12 for your certificate.</p>' +
-      '<div style="max-width:420px;display:grid;gap:6px">' + meter(Math.min(100, doneCount / 12 * 100), doneCount >= 12 ? 'good' : '') + '<span class="small muted mono">' + doneCount + ' completed · 12 needed</span></div>' +
-      '<div class="btn-row"><a class="btn" href="#lesson.g-method">Start with: How to Master Any Genre</a><a class="btn ghost" href="#lesson.g-project">Semester project</a></div></header>' +
+      '<nav class="crumbs"><a href="#genres">Hip-Hop Styles</a><span>/</span><span>Electives</span></nav>' +
+      '<header class="stack"><span class="eyebrow">Optional electives</span><h1 class="display">Genres Beyond Hip-Hop</h1>' +
+      '<p class="lede">' + s.genres.length + ' genre studios for the music hip-hop samples and fuses with. Each has its history, drums, harmony, a loadable beat, an assignment and a quiz. Electives are optional and not required to graduate.</p>' +
+      '<div class="btn-row"><a class="btn" href="#lesson.g-method">Start with: How to Master Any Genre</a></div></header>' +
       '<div class="chips" id="famChips">' + fams.map(function (f) { return '<button type="button" class="chip' + (f === genreFilter ? ' on' : '') + '" data-f="' + esc(f) + '">' + esc(f) + '</button>'; }).join('') + '</div>' +
       '<div class="genre-grid" id="genreGrid"></div>' +
     '</div>';
@@ -573,6 +626,16 @@
       };
     });
     draw();
+  }
+
+  // Every lesson gets videos: its own curated searches, or searches built from its title.
+  function watchHtml(l) {
+    const list = (l.watch && l.watch.length) ? l.watch : [[l.title, l.title + ' music production tutorial'], [l.title + ' (hip-hop)', l.title + ' hip hop producer']];
+    return '<section class="block"><header><h2>Watch & learn</h2><span class="tag">' + list.length + ' video searches</span></header>' +
+      '<div class="watch-list">' + list.map(function (w) {
+        return '<a class="watch-item" href="https://www.youtube.com/results?search_query=' + encodeURIComponent(w[1]) + '" target="_blank" rel="noopener"><span class="play" aria-hidden="true"></span><span><span class="q">' + esc(w[0]) + '</span><div class="w">YouTube search: ' + esc(w[1]) + '</div></span></a>';
+      }).join('') + '</div>' +
+      '<p class="muted small" style="margin:0">Opens YouTube results in a new tab. Pick a recent video for your DAW, watch it once, then do the steps below yourself.</p></section>';
   }
 
   // ---------- Studio ----------
@@ -674,7 +737,8 @@
   // ---------- Profile ----------
   function viewProfile() {
     const st = Store.state, x = xpInfo(), c = counts();
-    const all = A.semesters.every(function (s) { return semProgress(s).complete; });
+    const core = A.semesters.filter(function (s) { return !s.elective; });
+    const all = core.every(function (s) { return semProgress(s).complete; });
     const ear = ['freq', 'interval', 'chord'].map(function (m) {
       const e = st.ear[m];
       const label = { freq: 'Frequencies', interval: 'Intervals', chord: 'Chords' }[m];
@@ -699,13 +763,13 @@
         '</div>' +
       '</section>' +
       '<section class="stack"><h2 class="section-title">Diploma</h2>' +
-        '<div class="cert' + (all ? '' : ' locked') + '"><span class="seal">Master<br>Producer</span><span class="eyebrow">Producer Academy awards the diploma of</span><span class="who">Master Producer</span><span>to <strong>' + esc(st.name || 'Your Name') + '</strong></span>' +
-        '<span class="muted small">' + (all ? 'For completing all ' + A.semesters.length + ' semesters' : 'Complete all ' + A.semesters.length + ' semesters to graduate (' + A.semesters.filter(function (s) { return semProgress(s).complete; }).length + ' done)') + '</span>' +
+        '<div class="cert' + (all ? '' : ' locked') + '"><span class="seal">Master<br>Producer</span><span class="eyebrow">Hip-Hop Academy awards the diploma of</span><span class="who">Master Hip-Hop Producer</span><span>to <strong>' + esc(st.name || 'Your Name') + '</strong></span>' +
+        '<span class="muted small">' + (all ? 'For completing all ' + core.length + ' semesters' : 'Complete all ' + core.length + ' semesters to graduate (' + core.filter(function (s) { return semProgress(s).complete; }).length + ' done; electives are optional)') + '</span>' +
         (all && !framed ? '<button class="btn small no-print" type="button" data-print>Print diploma</button>' : '') + '</div>' +
       '</section>' +
       '<section class="stack"><h2 class="section-title">Semester certificates</h2><div class="lesson-list">' + A.semesters.map(function (s) {
         const p = semProgress(s);
-        return '<a class="lesson-item' + (p.complete ? ' done' : '') + '" href="#semester.' + s.id + '"><span class="no">' + (p.complete ? '<span class="check-dot on"></span>' : 'S' + s.no) + '</span><span><span class="t">' + esc(s.title) + '</span><div class="s">' + (p.complete ? 'Awarded ' + esc(fmtDate(semCompletedAt(s))) : Math.min(p.done, p.min) + ' / ' + p.min + ' lessons') + '</div></span><span class="badges">' + (p.complete ? '<span class="chip done">Certified</span>' : '<span class="chip">' + p.pct + '%</span>') + '</span></a>';
+        return '<a class="lesson-item' + (p.complete ? ' done' : '') + '" href="#semester.' + s.id + '"><span class="no">' + (p.complete ? '<span class="check-dot on"></span>' : (s.elective ? 'EL' : 'S' + s.no)) + '</span><span><span class="t">' + esc(s.title) + '</span><div class="s">' + (p.complete ? 'Awarded ' + esc(fmtDate(semCompletedAt(s))) : Math.min(p.done, p.min) + ' / ' + p.min + ' lessons') + '</div></span><span class="badges">' + (p.complete ? '<span class="chip done">Certified</span>' : '<span class="chip">' + p.pct + '%</span>') + '</span></a>';
       }).join('') + '</div></section>' +
       '<section class="stack"><h2 class="section-title">Saved beats</h2><div id="beatList"></div></section>' +
       '<section class="card stack"><h3 class="sub-title">Backup and restore</h3>' +
@@ -729,7 +793,7 @@
     drawBeats();
     document.getElementById('bkCopy').onclick = function () { copy(Store.exportJSON()); };
     const dlb = document.getElementById('bkDl');
-    const backupName = 'producer-academy-backup-' + Store.today() + '.json';
+    const backupName = 'hiphop-academy-backup-' + Store.today() + '.json';
     if (!framed) {
       dlb.onclick = function () {
         const blob = new Blob([Store.exportJSON()], { type: 'application/json' });
