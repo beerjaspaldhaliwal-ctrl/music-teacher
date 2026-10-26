@@ -1,6 +1,6 @@
 /* A deliberately small Markdown renderer for lesson content.
    Supports: ## / ### / #### headings, paragraphs, - and 1. lists, > callouts,
-   | tables |, ---, **bold**, *italic*, ==highlight==, `code` and [links](url). */
+   | tables |, ``` code blocks ```, ---, **bold**, *italic*, ==highlight==, `code` and [links](url). */
 (function () {
   function esc(s) {
     return String(s)
@@ -32,12 +32,23 @@
 
   function render(src) {
     if (!src) return '';
-    const lines = String(src).replace(/\r/g, '').split('\n').map(function (l) { return l.replace(/^\s+/, ''); });
+    const raw = String(src).replace(/\r/g, '').split('\n');
+    const lines = raw.map(function (l) { return l.replace(/^\s+/, ''); });
     const html = [];
     let i = 0;
     while (i < lines.length) {
       const line = lines[i];
       if (!line.trim()) { i++; continue; }
+
+      // Code blocks keep their spacing so grids (like drum patterns) stay aligned.
+      if (line.startsWith('```')) {
+        const buf = [];
+        i++;
+        while (i < lines.length && !lines[i].startsWith('```')) { buf.push(raw[i]); i++; }
+        i++;
+        html.push('<pre><code>' + esc(buf.join('\n')) + '</code></pre>');
+        continue;
+      }
 
       let m = line.match(/^(#{2,4})\s+(.*)$/);
       if (m) {
@@ -82,7 +93,7 @@
       }
 
       const para = [];
-      while (i < lines.length && lines[i].trim() && !/^(#{2,4}\s|[-*]\s|\d+[.)]\s|>|\||---+$)/.test(lines[i])) {
+      while (i < lines.length && lines[i].trim() && !/^(#{2,4}\s|[-*]\s|\d+[.)]\s|>|\||---+$|```)/.test(lines[i])) {
         para.push(lines[i]); i++;
       }
       html.push('<p>' + inline(para.join(' ')) + '</p>');

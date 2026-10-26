@@ -271,5 +271,6 @@
       sem.lessons = lessons;
       delete sem._spec;
     });
+    if (A.flAttach) A.flAttach();
   };
 })();

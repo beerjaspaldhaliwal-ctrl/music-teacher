@@ -34,6 +34,8 @@
   function midiToFreq(m) { return 440 * Math.pow(2, (m - 69) / 12); }
   const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
   function noteName(m) { return NOTE_NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1); }
+  // FL Studio numbers octaves one higher: middle C (MIDI 60) is C5. The Beat Lab uses FL names.
+  function flName(m) { return NOTE_NAMES[((m % 12) + 12) % 12] + Math.floor(m / 12); }
 
   // ---------- Drum voices ----------
   let openHatGain = null;
@@ -275,18 +277,23 @@
     ROWS.forEach(function (r) { p[r.k] = '.'.repeat(n); });
     return p;
   }
-  // Accepts 16- or 32-step patterns; a 16-step row in a 2-bar pattern repeats.
+  // Accepts 1, 2 or 4 bars (16, 32 or 64 steps); shorter rows repeat to fill the pattern.
   function normalise(src) {
     const p = JSON.parse(JSON.stringify(src));
     const longest = ROWS.reduce(function (m, r) { return Math.max(m, (p[r.k] || '').length); }, 0);
-    const bars = Math.max(1, Math.min(2, p.bars || Math.ceil(longest / 16) || 1));
+    let bars = Math.max(1, Math.min(4, p.bars || Math.ceil(longest / 16) || 1));
+    if (bars === 3) bars = 4;
     const n = bars * 16;
     const out = blankPattern(n);
     Object.keys(p).forEach(function (k) { out[k] = p[k]; });
     out.steps = n; out.bars = bars;
     ROWS.forEach(function (r) {
       let row = p[r.k] || '';
-      if (row.length && row.length <= 16 && n === 32) row = row.padEnd(16, '.') + row.padEnd(16, '.');
+      if (row.length && row.length < n) {
+        const unit = row.length <= 16 ? 16 : 32;
+        row = row.padEnd(unit, '.');
+        while (row.length < n) row += row.slice(0, unit);
+      }
       out[r.k] = row.padEnd(n, '.').slice(0, n);
     });
     LAYERS.forEach(function (L) {
@@ -416,7 +423,7 @@
       window.ACADEMY.semesters.forEach(function (s) {
         s.lessons.forEach(function (l) {
           (l.beats || []).forEach(function (b) {
-            const group = l.styleName ? 'Hip-hop · ' + l.styleName : l.genre ? 'Electives · ' + l.genre.family : 'Lesson beats';
+            const group = l.elFamily ? 'Electives · ' + l.elFamily : l.styleName ? 'Hip-hop · ' + l.styleName : l.genre ? 'Electives · ' + l.genre.family : 'Lesson beats';
             list.push({ group: group, name: b.name, pattern: b, lesson: l.id });
           });
         });
@@ -434,11 +441,11 @@
         if (hi - lo < 11) { lo -= Math.floor((11 - (hi - lo)) / 2); hi = lo + 11; }
         const range = hi - lo + 1;
         html += '<button type="button" class="row-label' + (self.muted[L.k] ? ' muted-row' : '') + '" data-mute="' + L.k + '" title="Click to mute or unmute">' + L.label + '</button>' +
-          '<div class="roll-grid" style="grid-column:2 / -1;--beats:' + (n / 4) + '" aria-label="' + L.label + ' notes ' + noteName(lo) + ' to ' + noteName(hi) + '">' +
+          '<div class="roll-grid" style="grid-column:2 / -1;--beats:' + (n / 4) + '" aria-label="' + L.label + ' notes ' + flName(lo) + ' to ' + flName(hi) + '">' +
           lay.notes.map(function (x) {
-            return '<span class="rn ' + L.k + '" title="' + noteName(x[1]) + (x[4] ? ' (glide)' : '') + '" style="left:' + (x[0] / n * 100) + '%;width:' + (Math.max(x[2], 0.6) / n * 100) + '%;bottom:' + ((x[1] - lo) / range * 100) + '%;height:' + (100 / range) + '%"></span>';
+            return '<span class="rn ' + L.k + '" title="' + flName(x[1]) + (x[4] ? ' (glide)' : '') + '" style="left:' + (x[0] / n * 100) + '%;width:' + (Math.max(x[2], 0.6) / n * 100) + '%;bottom:' + ((x[1] - lo) / range * 100) + '%;height:' + (100 / range) + '%"></span>';
           }).join('') +
-          '<span class="playhead" data-playhead></span><span class="roll-range">' + noteName(lo) + '–' + noteName(hi) + '</span></div>';
+          '<span class="playhead" data-playhead></span><span class="roll-range">' + flName(lo) + '–' + flName(hi) + '</span></div>';
       });
       return html;
     },
@@ -456,7 +463,7 @@
         opts += '<optgroup label="My saved beats">' + saved.map(function (b, i) { return '<option value="s' + i + '">' + esc(b.name) + '</option>'; }).join('') + '</optgroup>';
       }
 
-      let grid = '<div class="seq-wrap"><div class="seq" role="grid" aria-label="Step sequencer" style="grid-template-columns:92px repeat(' + n + ', minmax(22px, 1fr));min-width:' + (96 + n * 28) + 'px">';
+      let grid = '<div class="seq-wrap"><div class="seq" role="grid" aria-label="Step sequencer" style="grid-template-columns:92px repeat(' + n + ', minmax(' + (n > 32 ? 18 : 22) + 'px, 1fr));min-width:' + (96 + n * (n > 32 ? 21 : 28)) + 'px">';
       grid += '<span></span>';
       for (let i = 0; i < n; i++) grid += '<span class="step-led' + (i % 16 === 0 && i ? ' bar' : '') + '" data-step="' + i + '"></span>';
       ROWS.forEach(function (r) {
@@ -488,13 +495,13 @@
           grid +
           (layerCtl ? '<div class="device-bar">' + layerCtl + '</div>' : '') +
           '<div class="device-bar">' +
-            '<button class="btn small" type="button" id="dmBars">' + (n === 16 ? 'Make it 2 bars' : 'Back to 1 bar') + '</button>' +
+            '<div class="field" style="width:110px"><label for="dmBars">Length</label><select id="dmBars">' + [1, 2, 4].map(function (b) { return '<option value="' + b + '"' + (b * 16 === n ? ' selected' : '') + '>' + b + (b > 1 ? ' bars' : ' bar') + '</option>'; }).join('') + '</select></div>' +
             '<button class="btn small" type="button" id="dmClear">Clear drums</button>' +
             '<button class="btn small" type="button" id="dmCopy">Copy as text</button>' +
             '<input type="text" id="dmName" placeholder="Name your beat" style="max-width:200px" aria-label="Beat name">' +
             '<button class="btn small" type="button" id="dmSave">Save beat</button>' +
           '</div>' +
-          '<p class="muted small" style="margin:0">Pads: click to cycle off → hit → ghost. Click any row name to mute it. Melodic layers show the notes like a piano roll; swap their sounds above to hear the same part on other instruments. Clear the drums and program your own over the melody. All sounds are synthesised in your browser for study; use real samples in your DAW.</p>' +
+          '<p class="muted small" style="margin:0">Pads: click to cycle off → hit → ghost. Click any row name to mute it. Melodic layers show the notes like a piano roll, with note names as in FL Studio (middle C = C5); swap their sounds above to hear the same part on other instruments. Clear the drums and program your own over the melody. All sounds are synthesised in your browser for study; use real samples in your DAW.</p>' +
         '</div>';
       this.lcd();
 
@@ -510,20 +517,29 @@
       el.querySelector('#dmBpm').onchange = function (e) { p.bpm = Math.max(50, Math.min(220, +e.target.value || 120)); self.lcd(); };
       el.querySelector('#dmSwing').oninput = function (e) { p.swing = +e.target.value; el.querySelector('#dmSwingV').textContent = p.swing + '%'; self.lcd(); };
       el.querySelector('#dmRoot').onchange = function (e) { self.root = e.target.value; };
-      el.querySelector('#dmBars').onclick = function () {
+      // Longer: repeat what is there. Shorter: keep the first bars.
+      el.querySelector('#dmBars').onchange = function (e) {
         const was = self.playing; if (was) self.stop();
-        if (n === 16) { p.bars = 2; ROWS.forEach(function (r) { p[r.k] = p[r.k] + p[r.k]; }); }
-        else {
-          p.bars = 1; ROWS.forEach(function (r) { p[r.k] = p[r.k].slice(0, 16); });
-          LAYERS.forEach(function (L) { if (p[L.k]) p[L.k].notes = p[L.k].notes.filter(function (x) { return x[0] < 16; }); });
+        const m = (+e.target.value) * 16;
+        if (m > n) {
+          ROWS.forEach(function (r) { let row = p[r.k]; while (row.length < m) row += p[r.k]; p[r.k] = row.slice(0, m); });
+          LAYERS.forEach(function (L) {
+            if (!p[L.k]) return;
+            const base = p[L.k].notes.slice();
+            for (let off = n; off < m; off += n) base.forEach(function (x) { const y = x.slice(); y[0] += off; p[L.k].notes.push(y); });
+          });
+        } else {
+          ROWS.forEach(function (r) { p[r.k] = p[r.k].slice(0, m); });
+          LAYERS.forEach(function (L) { if (p[L.k]) p[L.k].notes = p[L.k].notes.filter(function (x) { return x[0] < m; }); });
         }
+        p.bars = m / 16;
         self.load(p); if (was) self.start();
       };
       el.querySelector('#dmClear').onclick = function () { ROWS.forEach(function (r) { p[r.k] = '.'.repeat(n); }); p.name = p.name === 'Empty' ? 'My beat' : p.name; self.render(); };
       el.querySelector('#dmCopy').onclick = function () {
-        let txt = p.name + ' @ ' + p.bpm + ' BPM, swing ' + p.swing + '%\n' + ROWS.map(function (r) { return r.label.padEnd(13) + p[r.k]; }).join('\n');
+        let txt = p.name + ' @ ' + p.bpm + ' BPM, swing ' + p.swing + '% (note names as in FL Studio: middle C = C5; x = length in steps)\n' + ROWS.map(function (r) { return r.label.padEnd(13) + p[r.k]; }).join('\n');
         LAYERS.forEach(function (L) {
-          if (p[L.k]) txt += '\n' + L.label + ' (' + p[L.k].inst + '): ' + p[L.k].notes.map(function (x) { return 'step ' + (x[0] + 1) + ' ' + noteName(x[1]) + ' x' + x[2] + (x[4] ? ' glide' : ''); }).join(', ');
+          if (p[L.k]) txt += '\n' + L.label + ' (' + p[L.k].inst + '): ' + p[L.k].notes.map(function (x) { return 'bar ' + (Math.floor(x[0] / 16) + 1) + ' step ' + (x[0] % 16 + 1) + ' ' + flName(x[1]) + ' x' + x[2] + (x[4] ? ' glide' : ''); }).join(', ');
         });
         App.copy(txt);
       };

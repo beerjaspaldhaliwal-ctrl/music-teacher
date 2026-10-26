@@ -357,8 +357,8 @@
       : g ? esc(g.family) + ' · Elective genre studio'
       : semLabel + ' · Lesson ' + (l.index + 1) + ' of ' + s.lessons.length;
     let head = '<nav class="crumbs"><a href="#school">School</a><span>/</span><a href="#semester.' + s.id + '">' + semLabel + '</a>' +
-      (g ? '<span>/</span><a href="#electives">Elective genres</a>' : '') +
-      (l.styleId ? '<span>/</span><a href="#genres">Hip-Hop Styles</a><span>/</span><a href="#lesson.' + parts[0].id + '">' + esc(l.styleName) + '</a>' : '') +
+      (g || l.elFamily ? '<span>/</span><a href="#electives">Elective genres</a>' : '') +
+      (l.styleId ? (l.elFamily ? '' : '<span>/</span><a href="#genres">Hip-Hop Styles</a>') + '<span>/</span><a href="#lesson.' + parts[0].id + '">' + esc(l.styleName) + '</a>' : '') +
       '<span>/</span><span>' + esc(l.title) + '</span></nav>' +
       (parts.length > 1 ? '<nav class="part-nav" aria-label="Masterclass parts">' + parts.map(function (x, i) {
         return '<a class="chip' + (x === l ? ' cur' : Store.isDone(x.id) ? ' done' : '') + '" href="#lesson.' + x.id + '">' + (Store.isDone(x.id) && x !== l ? '✓ ' : '') + 'Part ' + (i + 1) + '</a>';
@@ -373,6 +373,7 @@
           (dl.length ? '<span class="chip">Assignment</span>' : '') +
           (l.quiz && l.quiz.length ? '<span class="chip">' + l.quiz.length + '-question quiz</span>' : '') +
           (l.project ? '<span class="chip accent">Semester project</span>' : '') +
+          (l.fl ? '<span class="chip accent">FL Studio build</span>' : '') +
           (Store.isDone(l.id) ? '<span class="chip done">Completed</span>' : '') +
         '</div>' +
       '</header>';
@@ -582,7 +583,7 @@
     const doneStyles = A.hhStyles.filter(function (st) { const ls = styleLessons(st); return ls.length && ls.every(function (l) { return Store.isDone(l.id); }); }).length;
     main.innerHTML = '<div class="page">' +
       '<header class="stack"><span class="eyebrow">Year 2 · Semesters 8–12</span><h1 class="display">Hip-Hop Styles</h1>' +
-      '<p class="lede">' + total + ' hip-hop styles, each a masterclass from history and sound to drums, melodies, 808s, arrangement, vocals, mixing and selling, with demo beats you can play and study in the Beat Lab.</p>' +
+      '<p class="lede">' + total + ' hip-hop styles, each a masterclass from history and sound to drums, melodies, 808s, arrangement, vocals, mixing and selling, ending with a step-by-step <strong>Build It in FL Studio</strong> lesson: exact chords, melody, drums and 808 notes, plugins, mixer chains and arrangement.</p>' +
       '<div style="max-width:420px;display:grid;gap:6px">' + meter(total ? doneStyles / total * 100 : 0, doneStyles === total ? 'good' : '') + '<span class="small muted mono">' + doneStyles + ' of ' + total + ' styles fully completed</span></div></header>' +
       sems.map(function (s) {
         return '<section class="stack"><div class="split"><div><span class="eyebrow">Semester ' + s.no + '</span><h2 class="section-title">' + esc(s.title) + '</h2></div><a class="small" href="#semester.' + s.id + '">Semester page</a></div>' +
@@ -600,7 +601,7 @@
     main.innerHTML = '<div class="page">' +
       '<nav class="crumbs"><a href="#genres">Hip-Hop Styles</a><span>/</span><span>Electives</span></nav>' +
       '<header class="stack"><span class="eyebrow">Optional electives</span><h1 class="display">Genres Beyond Hip-Hop</h1>' +
-      '<p class="lede">' + s.genres.length + ' genre studios for the music hip-hop samples and fuses with. Each has its history, drums, harmony, a loadable beat, an assignment and a quiz. Electives are optional and not required to graduate.</p>' +
+      '<p class="lede">' + s.genres.length + ' genre studios for the music hip-hop samples and fuses with. Each has its history, drums, harmony, a loadable beat, an assignment and a quiz, plus a step-by-step FL Studio build. Electives are optional and not required to graduate.</p>' +
       '<div class="btn-row"><a class="btn" href="#lesson.g-method">Start with: How to Master Any Genre</a></div></header>' +
       '<div class="chips" id="famChips">' + fams.map(function (f) { return '<button type="button" class="chip' + (f === genreFilter ? ' on' : '') + '" data-f="' + esc(f) + '">' + esc(f) + '</button>'; }).join('') + '</div>' +
       '<div class="genre-grid" id="genreGrid"></div>' +

@@ -6,7 +6,7 @@ No install, no account and no build step. Open `index.html` and start.
 
 ## What's inside
 
-**15 semesters plus electives: 214 lessons, 20 hip-hop style masterclasses and 152 playable beats.** Every lesson has:
+**15 semesters plus electives: 269 lessons, 20 hip-hop style masterclasses, 48 step-by-step FL Studio builds and 248 playable beats.** Every lesson has:
 
 - **Theory** written for producers, with tables and reference charts
 - **Watch & learn**: hand-picked YouTube searches for that topic, which open recent tutorials and breakdowns
@@ -15,6 +15,14 @@ No install, no account and no build step. Open `index.html` and start.
 - **A practical assignment** with deliverables and a notes box
 - **A quiz** (70% to pass)
 - **Demo beats** that open in the Beat Lab, where many lessons have one
+
+### Built for FL Studio
+
+Every practical step is taught in **FL Studio (All Plugins Edition)** with stock plugins only:
+
+- **Year 1 FL Studio lessons:** setup and template, the plugin map, chords and melodies in the Piano Roll, drums and hi-hat rolls, 808s (tuning, glides, design), recording and tuning vocals, and the Mixer.
+- **A "Build It in FL Studio" lesson for every genre** (all 20 hip-hop styles and all 28 electives). Each gives the project setup, which plugin to load for each sound, the exact chords, melody, drum pattern and 808/bass notes in FL note names (middle C = C5) with Bar.Beat.Step positions, how to make the glides, mixer chains, a bar-by-bar Playlist arrangement, export settings, and the genre rules for writing your own progressions, melodies and 808s.
+- You can hear each build first in the Beat Lab (*Chords + melody* and *Full loop*), then make it yourself.
 
 ### Year 1: the producer's foundation (hip-hop focused)
 
@@ -30,7 +38,7 @@ No install, no account and no build step. Open `index.html` and start.
 
 ### Year 2: every hip-hop style in depth
 
-Each style is a 4-part masterclass (some have more): **1** sound, history and culture, **2** drums and groove, **3** melodies, samples and low end, **4** arrangement, vocals, mixing and selling. Each part comes with demo beats, a practical, a quiz and video searches.
+Each style is a masterclass of 4 parts or more: **1** sound, history and culture, **2** drums and groove, **3** melodies, samples and low end, **4** arrangement, vocals, mixing and selling, and a final **Build It in FL Studio** part. Each part comes with demo beats, a practical, a quiz and video searches.
 
 | # | Semester | Styles |
 |---|---|---|
@@ -53,7 +61,7 @@ Each style is a 4-part masterclass (some have more): **1** sound, history and cu
 
 All sound is synthesised with the Web Audio API, so it works offline.
 
-- **Beat Lab**: a 1- or 2-bar step sequencer (kick, snare, clap, hats, perc, 808) with swing and ghost notes, plus three melodic layers (melody, chords/counter-melody, 808/bass) shown on a piano roll. It has 19 instrument sounds (bells, choir, flute, strings, e-piano, tumbi, harmonium and more), 6 bass sounds (gliding 808, sub, Moog, Reese and others) and 152 presets from the style masterclasses and lessons. You can save beats and copy any pattern as text to rebuild in your DAW.
+- **Beat Lab**: a 1-, 2- or 4-bar step sequencer (kick, snare, clap, hats, perc, 808) with swing and ghost notes, plus three melodic layers (melody, chords/counter-melody, 808/bass) shown on a piano roll. It has 19 instrument sounds (bells, choir, flute, strings, e-piano, tumbi, harmonium and more), 6 bass sounds (gliding 808, sub, Moog, Reese and others) and 248 presets from the style masterclasses, FL builds and lessons. Note names follow FL Studio. You can save beats and copy any pattern as text to rebuild in your DAW.
 - **Synth Lab**: a subtractive synth you can play with mouse, touch or computer keyboard
 - **Theory Explorer**: scales, modes and thaats, diatonic chords and playable progressions
 - **Ear Trainer**: frequency, interval and chord-quality training
@@ -86,6 +94,10 @@ js/data/library.js         Glossary, resources and general reference
 js/data/hh-engine.js       Builds the 4-part masterclass for each hip-hop style
 js/data/hh-s08-*.js …      One file per hip-hop style semester (8–12)
 js/data/hh-core.js         Hip-hop core lessons, renumbering, roadmap and drills
+js/data/fl-core.js         FL Studio lessons for Year 1
+js/data/fl-engine.js       Builds the "Build It in FL Studio" lesson from a spec
+js/data/fl-hh-*.js         FL builds for the hip-hop styles
+js/data/fl-el-*.js         FL builds for the elective genres
 ```
 
 ## Adding or editing lessons
@@ -113,9 +125,11 @@ Each core semester file pushes an object onto `window.ACADEMY.semesters`. A less
 
 Hip-hop style semesters use `A.hhSemester({...})` with a list of style specs (history, drums, melody, bass, arrangement, mix, selling notes, quiz questions and a demo beat). `hh-engine.js` turns each spec into its 4 lessons.
 
+FL Studio builds use `A.flBuild({ id, title, bpm, key, scale, sounds, chords, melody, drums, bass, mixer, arrangement, vocals, write, quiz })`, where `id` is a hip-hop style id or `g-<genre>` for an elective. Notes are written as `"step:note:length"` (16th steps from 0, standard note names with middle C = C4, add `g` to the length for a glide); the lesson shows them in FL names. `fl-engine.js` turns the spec into the lesson and two Beat Lab presets.
+
 ### Beat format
 
-Drum rows are 16 characters (1 bar) or 32 (2 bars): `x` = hit, `o` = ghost note, `.` = rest. The rows are `kick`, `snare`, `clap`, `chh`, `ohh`, `perc` and `sub`.
+Drum rows are 16 characters (1 bar), 32 (2 bars) or 64 (4 bars): `x` = hit, `o` = ghost note, `.` = rest. The rows are `kick`, `snare`, `clap`, `chh`, `ohh`, `perc` and `sub`.
 
 Melodic layers are `keys` (melody), `keys2` (chords or counter-melody) and `bass`. Each has an instrument and a list of notes as `[step, midiNote, lengthInSteps, velocity?, glide?]`:
 

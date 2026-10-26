@@ -265,6 +265,8 @@ h3.sub-title { font-size: var(--step-1); font-weight: 700; }
 .prose strong { font-weight: 700; }
 .prose mark { background: var(--accent-soft); color: inherit; padding: 0 3px; border-radius: 2px; }
 .prose code { font-family: var(--font-mono); font-size: 0.875em; background: var(--code-bg); padding: 1px 5px; border-radius: 3px; }
+.prose pre { font-family: var(--font-mono); font-size: 0.8125rem; line-height: 1.55; background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; overflow-x: auto; white-space: pre; max-width: 100%; }
+.prose pre code { background: none; padding: 0; font-size: inherit; }
 .prose blockquote {
   margin-left: 0; margin-right: 0;
   padding: 12px 16px;
@@ -793,3 +795,6 @@ input[type="checkbox"] { accent-color: var(--good); width: 18px; height: 18px; }
 .lesson-group { padding: 10px 16px 6px; font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-ink); font-weight: 700; background: var(--surface-2); border-bottom: 1px solid var(--line); }
 .chip.elective { background: var(--surface-2); }
 .tl-item .chip, .part-nav .chip { white-space: normal; max-width: 100%; }
+
+/* Long beat names on lesson buttons wrap instead of widening the page on phones. */
+.btn[data-beat] { white-space: normal; max-width: 100%; text-align: left; height: auto; }
